@@ -21,7 +21,7 @@ model.to(device)
 
 # --- Настройки ---
 sample_rate = 48000
-speaker = 'baya'
+speaker = 'kseniya'
 
 # --- API Сервер ---
 app = FastAPI()
