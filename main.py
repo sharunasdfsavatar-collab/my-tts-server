@@ -1,14 +1,14 @@
-# main.py (для сервера на Railway)
+# main.py (для сервера на Railway) - ВЕРСИЯ 2.0 (ФИНАЛ)
 import os
 import torch
 import soundfile as sf
 from fastapi import FastAPI, Response
 from pydantic import BaseModel
+import io # <-- Добавили этот импорт
 
 # --- Загрузка модели ---
-# Модель будет скачана автоматически при первом запуске контейнера
 device = torch.device('cpu')
-torch.set_num_threads(4) # Оптимизация для CPU
+torch.set_num_threads(4)
 local_file = 'model.pt'
 
 if not os.path.isfile(local_file):
@@ -21,7 +21,7 @@ model.to(device)
 
 # --- Настройки ---
 sample_rate = 48000
-speaker = 'baya' # 'aidar', 'baya', 'kseniya', 'xenia', 'eugene', 'random'
+speaker = 'baya'
 
 # --- API Сервер ---
 app = FastAPI()
@@ -34,16 +34,19 @@ async def text_to_speech(req: TTSRequest):
     print(f"Получен запрос на синтез: '{req.text}'")
     
     # Синтез аудио
-    audio = model.apply_tts(
+    audio_tensor = model.apply_tts(
         text=req.text,
         speaker=speaker,
         sample_rate=sample_rate
     )
     
-    # Сохраняем во временный файл в памяти
-    audio_bytes = torch.int16_to_float(audio).numpy()
+    # ✅ ИСПРАВЛЕНИЕ: Преобразуем тензор в numpy массив напрямую
+    audio_numpy = audio_tensor.numpy()
     
-    # Отдаем аудио в формате WAV
-    return Response(content=sf.read(audio_bytes, samplerate=sample_rate)[0].tobytes(), media_type="audio/wav")
+    # ✅ ИСПРАВЛЕНИЕ: Правильно сохраняем WAV в буфер в памяти
+    buffer = io.BytesIO()
+    sf.write(buffer, audio_numpy, sample_rate, format='WAV', subtype='PCM_16')
+    
+    return Response(content=buffer.getvalue(), media_type="audio/wav")
 
 print("Сервер TTS готов к работе.")
